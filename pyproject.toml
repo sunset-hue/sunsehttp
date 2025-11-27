@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools"]
+build_backend = "setuptools.build_meta"
+
+[project]
+name = "sunsettp"
+authors = [{name = "sunset-hue", email = "sunsetree@proton.me"}]
+version = "0.1.0"
+requires-python = ">=3.11"
+description="A http library made for fun :D"
+readme = "README.md"
