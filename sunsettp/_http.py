@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from util.exceptions import NotAbsoluteUrl
+    from util.http_request import Request
 
 
 class Client:
@@ -28,11 +29,12 @@ class Client:
             raise NotImplementedError("Not implemented as of version 0.1.0.")
         else:
             raise NotAbsoluteUrl(f"{url} is not absolute")
+        self.__get_cache = []
 
-    def _do_bind(self, path: str, params: dict | None, port: int | None = 80):
+    def _do_connect(self, path: str, params: dict | None, port: int | None = 80):
         "internal"
         with self.__s as s:
-            s.bind(
+            s.connect(
                 (f"{self.url}{path}{urlencode(params) if params else "\0"}", port)
             )  # null, hopefully this doesn't cause any problems
             return s
@@ -43,14 +45,21 @@ class Client:
         params: dict | None = None,
         headers: list[dict] | dict | None = None,
         port: int | None = 80,
+        backlog_max: int = 1,
+        size: int = 65536,
     ):
-        """Sends a get request to `self.url`+*route*, with corresponding data if needed.
+        """Sends a get request to `self.url`+*route*.
 
         Args:
             route (str): The path to send the request to.
             params (dict | None): Any query params needed for the request. Defaults to None.
             headers (list[dict] | dict | None): Any headers needed for the request. Defaults to None.
             port (int | None): The port to connect to on the specified url. Defaults to 80, for HTTP connections on this client class.
+            backlog_max (int): The max backlog to keep on the internal `socket` when listening for a response. Defaults to 1, to respond on the first response it gets.
+            size (int): The max size that the internal `socket` will retrieve of the incoming request.
         """
-        with self._do_bind(path, params, port) as s:
-            ...
+        with self._do_connect(path, params, port) as s:
+            r = Request(path).construct()
+            s.send(r)
+            s.listen(backlog_max)
+            r = s.recv(size).decode()
