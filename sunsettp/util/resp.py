@@ -23,7 +23,7 @@ class Response:
         self.error_info = None
 
     @classmethod
-    def _parse(cls, incoming: bytes, strict_error: bool):
+    def _parse(cls, incoming: bytes, strict_error: bool, constructor: type):
         inited = cls()
         response = incoming.decode()
         code_header_data = response.split("\r\n")
@@ -42,9 +42,7 @@ class Response:
             elif i.startswith("{"):
                 inited.data = json.loads(i)
             else:
-                inited.data = (
-                    i  # we can't really tell what type this is, need to figure that out
-                )
+                inited.data = constructor(i)
         if strict_error:
             if inited.code >= 300 < 400:
                 warnings.warn(
