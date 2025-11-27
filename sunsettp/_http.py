@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from util.exceptions import NotAbsoluteUrl
     from util.http_request import Request
+    from util.resp import Response
 
 
 class Client:
@@ -43,23 +44,29 @@ class Client:
         self,
         path: str,
         params: dict | None = None,
-        headers: list[dict] | dict | None = None,
+        headers: dict[str, int | str] | None = None,
         port: int | None = 80,
         backlog_max: int = 1,
         size: int = 65536,
+        strict: bool = False,
     ):
         """Sends a get request to `self.url`+*route*.
 
         Args:
             route (str): The path to send the request to.
             params (dict | None): Any query params needed for the request. Defaults to None.
-            headers (list[dict] | dict | None): Any headers needed for the request. Defaults to None.
+            headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             port (int | None): The port to connect to on the specified url. Defaults to 80, for HTTP connections on this client class.
             backlog_max (int): The max backlog to keep on the internal `socket` when listening for a response. Defaults to 1, to respond on the first response it gets.
             size (int): The max size that the internal `socket` will retrieve of the incoming request.
+            strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to false.
+
+        Returns:
+            `Response` - The parsed response, with the response body, if applicable.
         """
         with self._do_connect(path, params, port) as s:
-            r = Request(path).construct()
+            r = Request(headers=headers, path=path).construct()
             s.send(r)
             s.listen(backlog_max)
-            r = s.recv(size).decode()
+            r = s.recv(size)
+            return Response()._parse(r, strict)

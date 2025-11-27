@@ -15,7 +15,7 @@ class Request:
     def __init__(
         self,
         data: Any | None = None,
-        headers: dict[str, Any] | None = None,
+        headers: dict[str, int | str] | None = None,
         method: str = "GET",
         path: str = "/",
     ):

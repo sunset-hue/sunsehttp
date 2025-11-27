@@ -16,3 +16,4 @@ class ContinuationWarning(Warning):
 class ClientError(Exception):
     def __init__(self, *args):
         self.args = args
+        self.reason: str = ""
