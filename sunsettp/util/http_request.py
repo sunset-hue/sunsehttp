@@ -63,3 +63,41 @@ class Request:
             res += self.data  # pyright: ignore[reportOperatorIssue]
             # we can expect bytes and strs commonly here, but if we want more, we need to account for those
         return res.encode()
+
+
+class Headers:
+    """A class that represents the header value pairs that a server sends back as attributes, meaning you can access the value of a specific header by name, like `header.content_type` (Header names that contain hyphens are replaced to contain underscores instead, and all header names are lowercased.)"""
+
+    def __init__(self):
+        self.code = 0
+
+    def instantiate(self, data: str):
+        r = data.split("\r\n")
+        self.code = int(r[0])
+        r.pop(0)  # the response code
+        # this class is only really used by the HEAD attr so we can expect to recieve responses with NO response body.
+        for i in r:
+            self.__setattr__(i.split(":")[0].lower().replace("-", "_"), i.split(":")[1])
+        return self
+
+
+class Options(Request):
+    """A subclass of `Request`, but with extra metadata needed for constructing an OPTIONS request."""
+
+    def __init__(self, target: str, path: str = "/"):
+        """Constructs a `Request` with data and headers,
+
+        Args:
+            data (Any): The data for the request. Optional.
+            headers (dict[str,Any] | None, optional): The headers supplied for the request. Defaults to None
+        """
+        super().__init__(method="OPTIONS", path=path)
+        self.target = target
+
+    def construct(self) -> bytes:
+        """Constructs a byte string that conforms to a HTTP/1.1 request with the method."""
+        res = ""
+        res += f"{self.method.upper()} {self.target} HTTP/1.1\r\n"
+        res += f"User-Agent: sunsehttp/0.1.0\r\n"
+        res += f"Accept: */*\r\n"  # we can allow them to edit this later
+        return res.encode()

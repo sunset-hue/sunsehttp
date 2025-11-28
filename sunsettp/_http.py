@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from util.exceptions import NotAbsoluteUrl
-    from util.http_request import Request
+    from util.http_request import Request, Headers, Options
     from util.resp import Response
 
 
@@ -177,3 +177,86 @@ class Client:
             s.listen(backlog_max)
             r = s.recv(size)
             return Response()._parse(r, strict, constructor)
+
+    def head(
+        self,
+        path: str,
+        params: dict | None = None,
+        headers: dict[str, int | str] | None = None,
+        port: int | None = 80,
+        backlog_max: int = 1,
+        size: int = 65536,
+    ) -> Headers:
+        """Sends a HEAD request to `self.url`+*route*. This is the same as a GET request, but the server only sends the headers of the requested resource.
+
+        Args:
+            path (str): The path to send the request to.
+            params (dict | None, optional): Any query params needed for the request. Defaults to None.
+            headers (dict[str, int  |  str] | None, optional): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
+            port (int | None, optional): The port to connect to on the specified URL. Defaults to 80, for HTTP connections.
+            backlog_max (int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
+            size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
+
+        Returns:
+            Headers: The headers of the resource.
+        """
+        with self._do_connect(path, params, port) as s:
+            r = Request(headers=headers, path=path, method="HEAD").construct()
+            s.send(r)
+            s.listen(backlog_max)
+            r = s.recv(size)
+            return Headers().instantiate(r.decode())
+
+    def options(
+        self,
+        path: str,
+        target: str,
+        port: int | None = 80,
+        backlog_max: int = 1,
+        size: int = 65536,
+    ):
+        """Sends an OPTIONS request to `self.url`+*route*. This allows the client to view the HTTP request methods that are allowed to be used on this resource.
+
+        Args:
+            path (str): The path to send the request to.
+            target (str): The target resource to find the operable methods of.
+            port (int | None, optional): The port to connect to on the specified URL. Defaults to 80, which is the default for HTTP connections.
+            backlog_max (int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
+            size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
+        Returns:
+            Headers: The specific header you need to access to actually retrieve your information on the available HTTP request methods are specified in the Allow header, so in this class, it would be `Headers.allow`
+        """
+        with self._do_connect(path, None, port) as s:
+            r = Options(target, path).construct()
+            s.send(r)
+            s.listen(backlog_max)
+            r = s.recv(size)
+            return Headers().instantiate(r.decode())
+
+    def trace(
+        self,
+        path: str,
+        port: int | None = 80,
+        headers: dict[str, int | str] | None = None,
+        backlog_max: int = 1,
+        size: int = 65536,
+        error=False,
+    ):
+        """Sends a TRACE request to `self.url`+*route*. This is like a ping to the server, to verify it's working.
+
+        Args:
+            path (str): The path to send the request to.
+            port (int | None, optional): The port to connect to on the specified URL. Defaults to 80, which is the default for HTTP connections.
+            headers (dict[str, int | str] | None): The headers you want to send with this request. The headers should be in a dict with every header you need, seperated into header-value pairs. Defaults to None.
+            backlog_max (int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
+            size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
+        Returns:
+            Response: A response that contains the code, and also contains the headers of this request.
+        """
+        with self._do_connect(path, None, port) as s:
+            r = Request(headers=headers, method="TRACE", path=path).construct()
+            s.send(r)
+            s.listen(backlog_max)
+            r = s.recv(size)
+            return Response()._parse(r, error, str)
+            # for this, we may need more robust parsing due to the data being headers, and we're just using the str constructor
