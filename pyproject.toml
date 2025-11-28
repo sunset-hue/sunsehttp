@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sunsehttp"
 authors = [{name = "sunset-hue", email = "sunsetree@proton.me"}]
-version = "0.1.0a"
+version = "0.1.0a1"
 requires-python = ">=3.11"
 description="A http library made for fun :D (only has HTTP and HTTPS support at the moment)"
 readme = "README.md"

@@ -50,7 +50,7 @@ class Response:
                         "This request requires you to continue. Take necessary action. This was generated due to the strict error param being enabled. To silence these warnings/errors, set the strict param on your request to False, or just don't set it at all."
                     )
                 )
-                return cls
+                return inited
 
             if inited.code >= 400:
                 inited.error_info = ClientError()
