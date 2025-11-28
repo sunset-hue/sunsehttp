@@ -1,6 +1,7 @@
 import socket
 from urllib.parse import urlparse, urlencode
 from typing import TYPE_CHECKING, Any
+import ssl
 
 if TYPE_CHECKING:
     from util.exceptions import NotAbsoluteUrl
@@ -32,7 +33,7 @@ class Client:
             raise NotAbsoluteUrl(f"{url} is not absolute")
         self.__get_cache = []
 
-    def _do_connect(self, path: str, params: dict | None, port: int | None = 80):
+    def _do_connect(self, path: str, params: dict | None, port: int | None = 443):
         "internal"
         with self.__s as s:
             s.connect(
@@ -45,7 +46,7 @@ class Client:
         path: str,
         params: dict | None = None,
         headers: dict[str, int | str] | None = None,
-        port: int | None = 80,
+        port: int | None = 443,
         backlog_max: int = 1,
         size: int = 65536,
         strict: bool = False,
@@ -71,6 +72,10 @@ class Client:
             s.send(r)
             s.listen(backlog_max)
             r = s.recv(size)
+            if Response()._parse(r, strict, constructor) in self.__get_cache:
+                for i in self.__get_cache:
+                    if Response()._parse(r, strict, constructor) == i:
+                        return i
             return Response()._parse(r, strict, constructor)
 
     def post(
@@ -260,3 +265,59 @@ class Client:
             r = s.recv(size)
             return Response()._parse(r, error, str)
             # for this, we may need more robust parsing due to the data being headers, and we're just using the str constructor
+
+    def patch(
+        self,
+        path,
+        port: int | None = 80,
+        headers: dict[str, int | str] | None = None,
+        backlog_max: int = 1,
+        data: Any = None,
+        size: int = 65536,
+        error: bool = False,
+    ):
+        """Sends a PATCH request to `self.url`+*route*.
+
+        Args:
+            path (str): The path to send the request to.
+            port (int | None, optional): The port to connect to on the specified URL. Defaults to 80, which is the default for HTTP connections.
+            headers (dict[str, int | str] | None): The headers you want to send with this request. The headers should be in a dict with every header you need, seperated into header-value pairs. Defaults to None.
+            backlog_max (int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
+            size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
+            error (bool): Whether to error out on error codes above 400.
+        Returns:
+            Response: A response that contains the code, and also contains the headers of this request.
+        """
+        with self._do_connect(path, None, port) as s:
+            r = Request(
+                headers=headers, method="PATCH", path=path, data=data
+            ).construct()
+            s.send(r)
+            s.listen(backlog_max)
+            r = s.recv(size)
+            return Response()._parse(r, error, str)
+
+
+class SslClient(Client):
+    """A subclass of Client that adds support for HTTPS connections, which use TLS (encrypted data) instead of the cleartext that HTTP uses. If not specified, this process is done for you. This is the client that's recommended to be used most of the time, due to the safety."""
+
+    def __init__(self, url: str):
+        """Creates an instance of `Client`, that operate on `url`, that uses HTTPS connections.
+
+        Args:
+            url (str): The URL of the website you want this client to send and receive requests from.
+
+        Raises:
+            NotAbsoluteUrl: Raised if the url supplied is not absolute.
+        """
+        self.__context = ssl._create_default_https_context(ssl.Purpose.CLIENT_AUTH)
+        self.__s = self.__context.wrap_socket(
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        )
+        if urlparse(url).netloc and urlparse(url).scheme:
+            self.url = urlparse(url)
+        elif ssl:
+            raise NotImplementedError("Not implemented as of version 0.1.0.")
+        else:
+            raise NotAbsoluteUrl(f"{url} is not absolute")
+        self.__get_cache = []
