@@ -3,10 +3,9 @@ from urllib.parse import urlparse, urlencode, urlunparse
 from typing import TYPE_CHECKING, Any
 import ssl
 
-if TYPE_CHECKING:
-    from .util.exceptions import NotAbsoluteUrl
-    from .util.http_request import Request, Headers, Options
-    from .util.resp import Response
+from .util.exceptions import NotAbsoluteUrl
+from .util.http_request import Request, Headers, Options
+from .util.resp import Response
 
 
 class Client:
@@ -69,7 +68,9 @@ class Client:
         """
         with self._do_connect(port) as s:
             r = Request(
-                headers=headers, path=f"{path}{urlencode(params) if params else ""}"
+                headers=headers,
+                path=f"{path}{urlencode(params) if params else ""}",
+                url=urlunparse(self.url),
             ).construct()
             s.send(r)
             r = s.recv(size)
@@ -111,6 +112,7 @@ class Client:
                 path=f"{path}{urlencode(params) if params else ""}",
                 method="POST",
                 data=data,
+                url=urlunparse(self.url),
             ).construct()
             s.send(r)
             r = s.recv(size)
@@ -148,6 +150,7 @@ class Client:
                 path=f"{path}{urlencode(params) if params else ""}",
                 method="PUT",
                 data=data,
+                url=urlunparse(self.url),
             ).construct()
             s.send(r)
             r = s.recv(size)
@@ -182,6 +185,7 @@ class Client:
                 headers=headers,
                 path=f"{path}{urlencode(params) if params else ""}",
                 method="DELETE",
+                url=urlunparse(self.url),
             ).construct()
             s.send(r)
             r = s.recv(size)
@@ -212,6 +216,7 @@ class Client:
                 headers=headers,
                 path=f"{path}{urlencode(params) if params else ""}",
                 method="HEAD",
+                url=urlunparse(self.url),
             ).construct()
             s.send(r)
             r = s.recv(size)
@@ -235,7 +240,7 @@ class Client:
             Headers: The specific header you need to access to actually retrieve your information on the available HTTP request methods are specified in the Allow header, so in this class, it would be `Headers.allow`
         """
         with self._do_connect(port) as s:
-            r = Options(target, path).construct()
+            r = Options(urlunparse(self.url), target, path).construct()
             s.send(r)
             r = s.recv(size)
             return Headers().instantiate(r.decode())
@@ -259,7 +264,9 @@ class Client:
             Response: A response that contains the code, and also contains the headers of this request.
         """
         with self._do_connect(port) as s:
-            r = Request(headers=headers, method="TRACE", path=path).construct()
+            r = Request(
+                headers=headers, method="TRACE", path=path, url=urlunparse(self.url)
+            ).construct()
             s.send(r)
             r = s.recv(size)
             return Response()._parse(r, error, str)
@@ -270,7 +277,6 @@ class Client:
         path,
         port: int | None = 80,
         headers: dict[str, int | str] | None = None,
-        int=1,
         data: Any = None,
         size: int = 65536,
         error: bool = False,
@@ -281,7 +287,6 @@ class Client:
             path (str): The path to send the request to.
             port (int | None, optional): The port to connect to on the specified URL. Defaults to 80, which is the default for HTTP connections.
             headers (dict[str, int | str] | None): The headers you want to send with this request. The headers should be in a dict with every header you need, seperated into header-value pairs. Defaults to None.
-            int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
             size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
             error (bool): Whether to error out on error codes above 400.
         Returns:
@@ -289,7 +294,11 @@ class Client:
         """
         with self._do_connect(port) as s:
             r = Request(
-                headers=headers, method="PATCH", path=f"{path}", data=data
+                headers=headers,
+                method="PATCH",
+                path=f"{path}",
+                data=data,
+                url=urlunparse(self.url),
             ).construct()
             s.send(r)
             r = s.recv(size)

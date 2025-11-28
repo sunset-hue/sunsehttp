@@ -14,6 +14,7 @@ class Request:
 
     def __init__(
         self,
+        url: str,
         data: Any | None = None,
         headers: dict[str, int | str] | None = None,
         method: str = "GET",
@@ -29,6 +30,7 @@ class Request:
         self.headers = headers if headers else {}
         self.method = method
         self.path = path
+        self.url = url
 
     def __add__(self, value: Any):
         if self.headers and self.data:
@@ -54,7 +56,9 @@ class Request:
         res = ""
         res += f"{self.method.upper()} {self.path} HTTP/1.1\r\n"
         res += f"User-Agent: sunsehttp/0.1.0\r\n"
-        res += f"Accept: */*\r\n"  # we can allow them to edit this later
+        res += f"Accept: */*\r\n"
+        res += f"Host: {self.url}\r\n"
+        res += "\r\n"  # we can allow them to edit this later
         if self.headers:
             for i in self.headers:
                 res += f"{i}: {self.headers[i]}\r\n"
@@ -84,14 +88,14 @@ class Headers:
 class Options(Request):
     """A subclass of `Request`, but with extra metadata needed for constructing an OPTIONS request."""
 
-    def __init__(self, target: str, path: str = "/"):
+    def __init__(self, url: str, target: str, path: str = "/"):
         """Constructs a `Request` with data and headers,
 
         Args:
             data (Any): The data for the request. Optional.
             headers (dict[str,Any] | None, optional): The headers supplied for the request. Defaults to None
         """
-        super().__init__(method="OPTIONS", path=path)
+        super().__init__(method="OPTIONS", path=path, url=url)
         self.target = target
 
     def construct(self) -> bytes:

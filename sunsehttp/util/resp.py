@@ -28,12 +28,12 @@ class Response:
         response = incoming.decode()
         code_header_data = response.split("\r\n")
         inited.code = int(code_header_data[0].split()[1])
-        code_header_data.pop(0)
         inited.phrase = code_header_data[0].split()[2]
+        code_header_data.pop(0)
         n = 0
         for i in code_header_data:
-            if ":" in i and not i.startswith(
-                "{"
+            if (
+                ":" in i and not i.startswith("{") and not i.startswith("<")
             ):  # if it starts with a { we can assume that it's in json form
                 header_val = i.split(":")
                 inited.headers.append({header_val[0]: header_val[1]})
@@ -42,7 +42,7 @@ class Response:
             elif i.startswith("{"):
                 inited.data = json.loads(i)
             else:
-                inited.data = constructor(i)
+                inited.data = i
         if strict_error:
             if inited.code >= 300 < 400:
                 warnings.warn(
