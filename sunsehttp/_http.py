@@ -1,5 +1,5 @@
 import socket
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode, urlunparse
 from typing import TYPE_CHECKING, Any
 import ssl
 
@@ -25,7 +25,7 @@ class Client:
             NotAbsoluteUrl: Raised if the url supplied is not absolute.
         """
         self.__s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if urlparse(url).netloc and urlparse(url).scheme:
+        if not url.endswith("/") and url.startswith("www."):
             self.url = urlparse(url)
         elif ssl:
             raise NotImplementedError("Not implemented as of version 0.1.0.")
@@ -33,21 +33,22 @@ class Client:
             raise NotAbsoluteUrl(f"{url} is not absolute")
         self.__get_cache = []
 
-    def _do_connect(self, path: str, params: dict | None, port: int | None = 443):
+    def _do_connect(self, port: int | None = 80):
         "internal"
-        with self.__s as s:
-            s.connect(
-                (f"{self.url}{path}{urlencode(params) if params else "\0"}", port)
-            )  # null, hopefully this doesn't cause any problems
-            return s
+        self.__s.connect(
+            (
+                f"{urlunparse(self.url)}",
+                port,
+            )
+        )  # null, hopefully this doesn't cause any problems
+        return self.__s
 
     def get(
         self,
         path: str,
         params: dict | None = None,
         headers: dict[str, int | str] | None = None,
-        port: int | None = 443,
-        backlog_max: int = 1,
+        port: int | None = 80,
         size: int = 65536,
         strict: bool = False,
         constructor: type = type[str],
@@ -59,7 +60,6 @@ class Client:
             params (dict | None): Any query params needed for the request. Defaults to None.
             headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             port (int | None): The port to connect to on the specified url. Defaults to 80, for HTTP connections on this client class.
-            backlog_max (int): The max backlog to keep on the internal `socket` when listening for a response. Defaults to 1, to respond on the first response it gets.
             size (int): The max size that the internal `socket` will retrieve of the incoming request.
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
             constructor (type): The type to construct the data of the response to. Defaults to the type of bytes.
@@ -67,10 +67,11 @@ class Client:
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
         """
-        with self._do_connect(path, params, port) as s:
-            r = Request(headers=headers, path=path).construct()
+        with self._do_connect(port) as s:
+            r = Request(
+                headers=headers, path=f"{path}{urlencode(params) if params else ""}"
+            ).construct()
             s.send(r)
-            s.listen(backlog_max)
             r = s.recv(size)
             if Response()._parse(r, strict, constructor) in self.__get_cache:
                 for i in self.__get_cache:
@@ -84,7 +85,6 @@ class Client:
         params: dict | None = None,
         headers: dict[str, int | str] | None = None,
         port: int | None = 80,
-        backlog_max: int = 1,
         size: int = 65536,
         strict: bool = False,
         data: Any = None,
@@ -97,7 +97,6 @@ class Client:
             params (dict | None): Any query params needed for the request. Defaults to None.
             headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             port (int | None): The port to connect to on the specified url. Defaults to 80, for HTTP connections on this client class.
-            backlog_max (int): The max backlog to keep on the internal `socket` when listening for a response. Defaults to 1, to respond on the first response it gets.
             size (int): The max size that the internal `socket` will retrieve of the incoming request. (in bytes)
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
             constructor (type): The type to construct the data of the response to. Defaults to the type of bytes.
@@ -106,12 +105,14 @@ class Client:
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
         """
-        with self._do_connect(path, params, port) as s:
+        with self._do_connect(port) as s:
             r = Request(
-                headers=headers, path=path, method="POST", data=data
+                headers=headers,
+                path=f"{path}{urlencode(params) if params else ""}",
+                method="POST",
+                data=data,
             ).construct()
             s.send(r)
-            s.listen(backlog_max)
             r = s.recv(size)
             return Response()._parse(r, strict, constructor)
 
@@ -121,7 +122,6 @@ class Client:
         params: dict | None = None,
         headers: dict[str, int | str] | None = None,
         port: int | None = 80,
-        backlog_max: int = 1,
         size: int = 65536,
         strict: bool = False,
         data: Any = None,
@@ -134,7 +134,6 @@ class Client:
             params (dict | None): Any query params needed for the request. Defaults to None.
             headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             port (int | None): The port to connect to on the specified url. Defaults to 80, for HTTP connections on this client class.
-            backlog_max (int): The max backlog to keep on the internal `socket` when listening for a response. Defaults to 1, to respond on the first response it gets.
             size (int): The max size that the internal `socket` will retrieve of the incoming request. (in bytes)
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
             constructor (type): The type to construct the data of the response to. Defaults to the type of bytes.
@@ -143,10 +142,14 @@ class Client:
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
         """
-        with self._do_connect(path, params, port) as s:
-            r = Request(headers=headers, path=path, method="PUT", data=data).construct()
+        with self._do_connect(port) as s:
+            r = Request(
+                headers=headers,
+                path=f"{path}{urlencode(params) if params else ""}",
+                method="PUT",
+                data=data,
+            ).construct()
             s.send(r)
-            s.listen(backlog_max)
             r = s.recv(size)
             return Response()._parse(r, strict, constructor)
 
@@ -156,7 +159,6 @@ class Client:
         params: dict | None = None,
         headers: dict[str, int | str] | None = None,
         port: int | None = 80,
-        backlog_max: int = 1,
         size: int = 65536,
         strict: bool = False,
         constructor: type = type[str],
@@ -168,7 +170,6 @@ class Client:
             params (dict | None): Any query params needed for the request. Defaults to None.
             headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             port (int | None): The port to connect to on the specified url. Defaults to 80, for HTTP connections on this client class.
-            backlog_max (int): The max backlog to keep on the internal `socket` when listening for a response. Defaults to 1, to respond on the first response it gets.
             size (int): The max size that the internal `socket` will retrieve of the incoming request. (in bytes)
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
             constructor (type): The type to construct the data of the response to. Defaults to the type of bytes.
@@ -176,10 +177,13 @@ class Client:
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
         """
-        with self._do_connect(path, params, port) as s:
-            r = Request(headers=headers, path=path, method="DELETE").construct()
+        with self._do_connect(port) as s:
+            r = Request(
+                headers=headers,
+                path=f"{path}{urlencode(params) if params else ""}",
+                method="DELETE",
+            ).construct()
             s.send(r)
-            s.listen(backlog_max)
             r = s.recv(size)
             return Response()._parse(r, strict, constructor)
 
@@ -189,7 +193,6 @@ class Client:
         params: dict | None = None,
         headers: dict[str, int | str] | None = None,
         port: int | None = 80,
-        backlog_max: int = 1,
         size: int = 65536,
     ) -> Headers:
         """Sends a HEAD request to `self.url`+*route*. This is the same as a GET request, but the server only sends the headers of the requested resource.
@@ -199,16 +202,18 @@ class Client:
             params (dict | None, optional): Any query params needed for the request. Defaults to None.
             headers (dict[str, int  |  str] | None, optional): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             port (int | None, optional): The port to connect to on the specified URL. Defaults to 80, for HTTP connections.
-            backlog_max (int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
             size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
 
         Returns:
             Headers: The headers of the resource.
         """
-        with self._do_connect(path, params, port) as s:
-            r = Request(headers=headers, path=path, method="HEAD").construct()
+        with self._do_connect(port) as s:
+            r = Request(
+                headers=headers,
+                path=f"{path}{urlencode(params) if params else ""}",
+                method="HEAD",
+            ).construct()
             s.send(r)
-            s.listen(backlog_max)
             r = s.recv(size)
             return Headers().instantiate(r.decode())
 
@@ -217,7 +222,6 @@ class Client:
         path: str,
         target: str,
         port: int | None = 80,
-        backlog_max: int = 1,
         size: int = 65536,
     ):
         """Sends an OPTIONS request to `self.url`+*route*. This allows the client to view the HTTP request methods that are allowed to be used on this resource.
@@ -226,15 +230,13 @@ class Client:
             path (str): The path to send the request to.
             target (str): The target resource to find the operable methods of.
             port (int | None, optional): The port to connect to on the specified URL. Defaults to 80, which is the default for HTTP connections.
-            backlog_max (int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
             size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
         Returns:
             Headers: The specific header you need to access to actually retrieve your information on the available HTTP request methods are specified in the Allow header, so in this class, it would be `Headers.allow`
         """
-        with self._do_connect(path, None, port) as s:
+        with self._do_connect(port) as s:
             r = Options(target, path).construct()
             s.send(r)
-            s.listen(backlog_max)
             r = s.recv(size)
             return Headers().instantiate(r.decode())
 
@@ -243,7 +245,6 @@ class Client:
         path: str,
         port: int | None = 80,
         headers: dict[str, int | str] | None = None,
-        backlog_max: int = 1,
         size: int = 65536,
         error=False,
     ):
@@ -253,15 +254,13 @@ class Client:
             path (str): The path to send the request to.
             port (int | None, optional): The port to connect to on the specified URL. Defaults to 80, which is the default for HTTP connections.
             headers (dict[str, int | str] | None): The headers you want to send with this request. The headers should be in a dict with every header you need, seperated into header-value pairs. Defaults to None.
-            backlog_max (int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
             size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
         Returns:
             Response: A response that contains the code, and also contains the headers of this request.
         """
-        with self._do_connect(path, None, port) as s:
+        with self._do_connect(port) as s:
             r = Request(headers=headers, method="TRACE", path=path).construct()
             s.send(r)
-            s.listen(backlog_max)
             r = s.recv(size)
             return Response()._parse(r, error, str)
             # for this, we may need more robust parsing due to the data being headers, and we're just using the str constructor
@@ -271,7 +270,7 @@ class Client:
         path,
         port: int | None = 80,
         headers: dict[str, int | str] | None = None,
-        backlog_max: int = 1,
+        int=1,
         data: Any = None,
         size: int = 65536,
         error: bool = False,
@@ -282,18 +281,17 @@ class Client:
             path (str): The path to send the request to.
             port (int | None, optional): The port to connect to on the specified URL. Defaults to 80, which is the default for HTTP connections.
             headers (dict[str, int | str] | None): The headers you want to send with this request. The headers should be in a dict with every header you need, seperated into header-value pairs. Defaults to None.
-            backlog_max (int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
+            int, optional): The max backlog of messages to keep on the internal `socket` when listening for a response. Defaults to 1.
             size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
             error (bool): Whether to error out on error codes above 400.
         Returns:
             Response: A response that contains the code, and also contains the headers of this request.
         """
-        with self._do_connect(path, None, port) as s:
+        with self._do_connect(port) as s:
             r = Request(
-                headers=headers, method="PATCH", path=path, data=data
+                headers=headers, method="PATCH", path=f"{path}", data=data
             ).construct()
             s.send(r)
-            s.listen(backlog_max)
             r = s.recv(size)
             return Response()._parse(r, error, str)
 
@@ -310,14 +308,13 @@ class SslClient(Client):
         Raises:
             NotAbsoluteUrl: Raised if the url supplied is not absolute.
         """
+        super().__init__(url)
         self.__context = ssl._create_default_https_context(ssl.Purpose.CLIENT_AUTH)
         self.__s = self.__context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         )
-        if urlparse(url).netloc and urlparse(url).scheme:
+        if not url.endswith("/"):
             self.url = urlparse(url)
-        elif ssl:
-            raise NotImplementedError("Not implemented as of version 0.1.0.")
         else:
             raise NotAbsoluteUrl(f"{url} is not absolute")
         self.__get_cache = []
