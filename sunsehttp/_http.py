@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING, Any
 import ssl
 
 if TYPE_CHECKING:
-    from util.exceptions import NotAbsoluteUrl
-    from util.http_request import Request, Headers, Options
-    from util.resp import Response
+    from .util.exceptions import NotAbsoluteUrl
+    from .util.http_request import Request, Headers, Options
+    from .util.resp import Response
 
 
 class Client:
