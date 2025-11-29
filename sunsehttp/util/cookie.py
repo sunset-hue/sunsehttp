@@ -1,8 +1,11 @@
+from typing import Any
+
+
 class Cookie:
     """Represents a Cookie sent through the Set-Cookie header that a server sends as a response. Cookies are small bits of data that a server sends to a client that may be used for authentication and purposes that relate to that.
     This can be used as a server application."""
 
-    def __init__(self, cookie_header: dict[str, str]):
+    def __init__(self, cookie_header: dict[str, str | Any]):
         """Constructs a cookie.
 
         Args:
@@ -30,3 +33,31 @@ class Cookie:
 
     def parse(self):
         """Parses the cookie data to the attributes specified in this class. If any attribute has a value of an empty string, assume that that content was not available in the raw data."""
+        # there's gonna be a lot of comments down here because this code might be a lil hard to undestand
+        cookie_options = self.raw_data["Set-Cookie"].split(";")
+        # splits up the av section of the cookie and the cookie pair
+        cookie_kv = cookie_options[0].split("=")
+        # splits on the first value in the cookie options list, which is always going to be the cookie pair
+        self.data = cookie_kv[1]
+        self.cookie_name = cookie_kv[0]
+        # below this is AV parsing
+        cookie_av = cookie_options[1]
+        cookie_av_strs = cookie_av.split(
+            "/"
+        )  # splits on / so we can access the values of each av
+        if cookie_av.find("Secure") > 0:
+            self.secure = True
+        if cookie_av.find("HttpOnly") > 0:
+            self.http_only = True
+        for idx, i in enumerate(cookie_av_strs):
+            if i == "Secure":
+                cookie_av_strs.pop(idx)  # we've already done logic for this
+            elif i == "HttpOnly":
+                cookie_av_strs.pop(idx)  # already done logic
+            if "=" in i:
+                name_val = i.split("=")
+                if "_" in name_val[0]:
+                    name_val[0] = name_val[0].replace(
+                        "-", "_"
+                    )  # replaces hyphens with underscores to not create syntax errors
+                setattr(self, name_val[0], name_val[1])  # self explanatory

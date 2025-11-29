@@ -6,6 +6,7 @@ import ssl
 from .util.exceptions import NotAbsoluteUrl
 from .util.http_request import Request, Headers, Options
 from .util.resp import Response
+from .util.cookie import Cookie
 
 
 class Client:
@@ -31,7 +32,8 @@ class Client:
         else:
             raise NotAbsoluteUrl(f"{url} is not absolute")
         self.__get_cache = []
-        self.jar: None = None
+        self.cookies: list[Cookie] = []
+        """The current cookies that the client has cached for use."""
         self._do_connect(port=80)
 
     def _do_connect(self, port: int | None = 80):
@@ -53,8 +55,8 @@ class Client:
         strict: bool = False,
         constructor: type = type[str],
     ):
-        """Sends a GET request to `self.url`+*route*.
-
+        """Sends a GET request to `self.url`+*route*.\n
+        Note: If you want to supply a cookie through any of the requests, you will have to put it as a header, due to limitations as of 0.1.0. This is going to be fixed in later updates in 0.1.x.
         Args:
             route (str): The path to send the request to.
             params (dict | None): Any query params needed for the request. Defaults to None.
@@ -78,6 +80,10 @@ class Client:
             for i in self.__get_cache:
                 if Response()._parse(r, strict, constructor) == i:
                     return i
+        for i in Response()._parse(r, strict, constructor).headers:
+            if i.get("Set-Cookie"):
+                self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
+                break
         return Response()._parse(r, strict, constructor)
 
     def post(
@@ -90,8 +96,8 @@ class Client:
         data: Any = None,
         constructor: type = type[str],
     ):
-        """Sends a POST request to `self.url`+*route*.
-
+        """Sends a POST request to `self.url`+*route*. \n
+        Note: If you want to supply a cookie through any of the requests, you will have to put it as a header, due to limitations as of 0.1.0. This is going to be fixed in later updates in 0.1.x.
         Args:
             route (str): The path to send the request to.
             params (dict | None): Any query params needed for the request. Defaults to None.
@@ -114,6 +120,10 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
+        for i in Response()._parse(r, strict, constructor).headers:
+            if i.get("Set-Cookie"):
+                self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
+                break
         return Response()._parse(r, strict, constructor)
 
     def put(
@@ -126,8 +136,8 @@ class Client:
         data: Any = None,
         constructor: type = type[str],
     ):
-        """Sends a PUT request to `self.url`+*route*.
-
+        """Sends a PUT request to `self.url`+*route*. \n
+        Note: If you want to supply a cookie through any of the requests, you will have to put it as a header, due to limitations as of 0.1.0. This is going to be fixed in later updates in 0.1.x.
         Args:
             route (str): The path to send the request to.
             params (dict | None): Any query params needed for the request. Defaults to None.
@@ -150,6 +160,10 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
+        for i in Response()._parse(r, strict, constructor).headers:
+            if i.get("Set-Cookie"):
+                self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
+                break
         return Response()._parse(r, strict, constructor)
 
     def delete(
