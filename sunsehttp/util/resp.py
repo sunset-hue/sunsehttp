@@ -39,7 +39,7 @@ class Response:
                 inited.headers.append({header_val[0]: header_val[1]})
                 code_header_data.pop(n)
                 n += 1
-            elif i.startswith("{"):
+            elif i.startswith("{") or i.startswith("["):
                 inited.data = json.loads(i)
             else:
                 inited.data = i
