@@ -46,6 +46,24 @@ class Client:
         )  # null, hopefully this doesn't cause any problems
         return self._s
 
+    def handle_redirects(
+        self,
+        response: Response,
+        method: str,
+        headers: dict[str, Any] | None,
+        data: Any | None,
+    ):
+        if response.code >= 300 < 400:
+            match response.code:
+                case 301, 302, 303, 305:
+                    response.redirect(
+                        response.headers["Location"],  # type: ignore
+                        method,  # type: ignore
+                        self,
+                        data=data,
+                        headers=headers,
+                    )
+
     def get(
         self,
         path: str,
@@ -54,8 +72,7 @@ class Client:
         size: int = 65536,
         strict: bool = False,
         redirects: bool = True,
-        redirect_op_index: int = 0,
-        unencoder: Callable[..., bytes] | None = None,
+        unencoder: Callable[..., None] | None = None,
     ):
         """Sends a GET request to `self.url`+*route*.\n
         Note: If you want to supply a cookie through any of the requests, you will have to put it as a header, due to limitations as of 0.1.0. This is going to be fixed in later updates in 0.1.x.
@@ -66,8 +83,8 @@ class Client:
             size (int): The max size that the internal `socket` will retrieve of the incoming request.
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
             redirects (bool): Whether to redirect automatically to the specified resource if a 3xx code is recieved. Defaults to `True`. If this is set to `False`, you will have to handle the follow-up request.
-            redirect_op_index (int): The index to use the URI of if a 300 code is recieved. Defaults to 0, meaning the first URI listed. Only valid if redirects is set to `True`, else does nothing.
-            unencoder (Callable[...,bytes] | None): The custom unencoder function to use, since sunsehttp only provides support for gzip decompression.
+            redirect_op_index (int): The index to use the URI of if a 300 code is recieved. Defaults to 0, meaning the first URI listed. Only valid if redirects is set to `True`, else does nothing. Unused and not a parameter as of 0.1.0bc1.
+            unencoder (Callable[[str, bytes],None] | None): The custom unencoder function to use, since sunsehttp only provides support for gzip decompression. The function should take the encoding string as the first parameter, and the request body in bytes as the second one.
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
         """
@@ -80,14 +97,16 @@ class Client:
         s.send(r)
         r = s.recv(size)
         constructed = Response._parse(r, strict, unencoder)
+        if redirects:
+            self.handle_redirects(constructed, "GET", headers, None)
         if constructed in self.__get_cache:
             for i in self.__get_cache:
                 if constructed == i:
                     return i
-        for i in constructed.headers:
-            if i.get("Set-Cookie"):
-                self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
-                break
+        if constructed.headers.get("Set-Cookie"):
+            self.cookies.append(
+                Cookie({"Set-Cookie": constructed.headers["Set-Cookie"]})
+            )
         return constructed
 
     def post(
@@ -98,7 +117,7 @@ class Client:
         size: int = 65536,
         strict: bool = False,
         data: Any = None,
-        unencoder: Callable[..., bytes] | None = None,
+        unencoder: Callable[[str, bytes], None] | None = None,
     ):
         """Sends a POST request to `self.url`+*route*. \n
         Note: If you want to supply a cookie through any of the requests, you will have to put it as a header, due to limitations as of 0.1.0. This is going to be fixed in later updates in 0.1.x.
@@ -109,7 +128,7 @@ class Client:
             size (int): The max size that the internal `socket` will retrieve of the incoming request. (in bytes)
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
             data (Any): The data to send to the path. Make sure this datatype can be encoded or decoded into `bytes`.
-            unencoder (Callable[...,bytes] | None): The custom unencoder function to use, since sunsehttp only provides support for gzip decompression.
+            unencoder (Callable[[str,bytes],bytes] | None): The custom unencoder function to use, since sunsehttp only provides support for gzip decompression. The function should take the encoding string as the first parameter, and the request body in bytes as the second one.
 
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
@@ -124,10 +143,9 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        for i in Response._parse(r, strict).headers:
-            if i.get("Set-Cookie"):
-                self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
-                break
+        h = Response._parse(r, strict).headers
+        if h.get("Set-Cookie"):
+            self.cookies.append(Cookie({"Set-Cookie": h["Set-Cookie"]}))
         return Response._parse(r, strict, unencoder)
 
     def put(
@@ -138,7 +156,7 @@ class Client:
         size: int = 65536,
         strict: bool = False,
         data: Any = None,
-        unencoder: Callable[..., bytes] | None = None,
+        unencoder: Callable[[str, bytes], None] | None = None,
     ):
         """Sends a PUT request to `self.url`+*route*. \n
         Note: If you want to supply a cookie through any of the requests, you will have to put it as a header, due to limitations as of 0.1.0. This is going to be fixed in later updates in 0.1.x.
@@ -149,7 +167,7 @@ class Client:
             size (int): The max size that the internal `socket` will retrieve of the incoming request. (in bytes)
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
             data (Any): The data to send to the path. Make sure this datatype can be encoded into `bytes`.
-            unencoder (Callable[...,bytes] | None): The custom unencoder function to use, since sunsehttp only provides support for gzip decompression.
+            unencoder (Callable[[str,bytes],bytes] | None): The custom unencoder function to use, since sunsehttp only provides support for gzip decompression. The function should take the encoding string as the first parameter, and the request body in bytes as the second one.
 
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
@@ -164,10 +182,9 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        for i in Response._parse(r, strict).headers:
-            if i.get("Set-Cookie"):
-                self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
-                break
+        h = Response._parse(r, strict).headers
+        if h.get("Set-Cookie"):
+            self.cookies.append(Cookie({"Set-Cookie": h["Set-Cookie"]}))
         return Response._parse(r, strict)
 
     def delete(
@@ -283,7 +300,7 @@ class Client:
         data: Any = None,
         size: int = 65536,
         error: bool = False,
-        unencoder: Callable[..., bytes] | None = None,
+        unencoder: Callable[[str, bytes], None] | None = None,
     ):
         """Sends a PATCH request to `self.url`+*route*.
 
@@ -292,7 +309,7 @@ class Client:
             headers (dict[str, int | str] | None): The headers you want to send with this request. The headers should be in a dict with every header you need, separated into header-value pairs. Defaults to None.
             size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
             error (bool): Whether to error out on error codes above 400.
-            unencoder (Callable[...,bytes] | None): The custom unencoder function to use, since sunsehttp only provides support for gzip decompression.
+            unencoder (Callable[[str,bytes],bytes] | None): The custom unencoder function to use, since sunsehttp only provides support for gzip decompression. The function should take the encoding string as the first parameter, and the request body in bytes as the second one.
         Returns:
             Response: A response that contains the code, and also contains the headers of this request.
         """

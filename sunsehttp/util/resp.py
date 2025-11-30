@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class Response:
     def __init__(self):
         """Internal, don't use this constructor for creating a response, if on server side. Use the equivalent `ServerResponse` defined in the `sunsehttp.server` module. (not available as of v0.1.0)"""
-        self.headers: list[dict[str, int | str]] = []
+        self.headers: dict[str, int | str] = {}
         """A list of all the headers, seperated into key value pairs."""
         self.data: bytes | None = None
         """The data/response body, if applicable."""
@@ -33,7 +33,7 @@ class Response:
         cls,
         incoming: bytes,
         strict_error: bool,
-        unencoder: Callable[..., bytes] | None = None,
+        unencoder: Callable[[str, bytes], None] | None = None,
     ):
         """parses headers, and leaves data as bytes so the decoding algorithm can do its work"""
         inited = cls()
@@ -45,10 +45,11 @@ class Response:
         for n, i in enumerate(code_header_data):
             if b":" in i:
                 header_val = i.decode().split(":")
-                inited.headers.append({header_val[0]: header_val[1].removesuffix("\r")})
+                inited.headers[header_val[0]] = header_val[1]
                 # this basically says "if I contain a colon (meaning it's a header), decode me and put me into self.headers"
             if i == b"\r":
                 inited.data = incoming[n + 1 :]
+                break
                 # n + 1 so we don't include the empty \r line
         if strict_error:
             if inited.code >= 400:
@@ -68,7 +69,7 @@ class Response:
                             return inited
                         case _:
                             if unencoder:
-                                unencoder(inited.data)
+                                unencoder(inited.encoding, inited.data)
         return inited
 
     def redirect(
