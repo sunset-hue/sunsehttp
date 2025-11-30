@@ -24,7 +24,7 @@ class Client:
         Raises:
             NotAbsoluteUrl: Raised if the url supplied is not absolute.
         """
-        self.__s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if not url.endswith("/"):
             self.url = urlparse(url)
         elif ssl:
@@ -38,13 +38,13 @@ class Client:
 
     def _do_connect(self, port: int | None = 80):
         "internal"
-        self.__s.connect(
+        self._s.connect(
             (
                 f"{urlunparse(self.url)}",
                 port,
             )
         )  # null, hopefully this doesn't cause any problems
-        return self.__s
+        return self._s
 
     def get(
         self,
@@ -54,6 +54,8 @@ class Client:
         size: int = 65536,
         strict: bool = False,
         constructor: type = type[str],
+        redirects: bool = True,
+        redirect_op_index: int = 0,
     ):
         """Sends a GET request to `self.url`+*route*.\n
         Note: If you want to supply a cookie through any of the requests, you will have to put it as a header, due to limitations as of 0.1.0. This is going to be fixed in later updates in 0.1.x.
@@ -63,12 +65,14 @@ class Client:
             headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             size (int): The max size that the internal `socket` will retrieve of the incoming request.
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
-            constructor (type): The type to construct the data of the response to. Defaults to the type of bytes.
+            constructor (type): The type to construct the data of the response to. Defaults to the type of string.
+            redirects (bool): Whether to redirect automatically to the specified resource if a 3xx code is recieved. Defaults to `True`. If this is set to `False`, you will have to handle the follow-up request.
+            redirect_op_index (int): The index to use the URI of if a 300 code is recieved. Defaults to 0, meaning the first URI listed. Only valid if redirects is set to `True`, else does nothing.
 
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
         """
-        s = self.__s
+        s = self._s
         r = Request(
             headers=headers,
             path=f"{path}{urlencode(params) if params else ""}",
@@ -76,11 +80,12 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        if Response()._parse(r, strict, constructor) in self.__get_cache:
+        constructed = Response()._parse(r, strict, constructor)
+        if constructed in self.__get_cache:
             for i in self.__get_cache:
-                if Response()._parse(r, strict, constructor) == i:
+                if constructed == i:
                     return i
-        for i in Response()._parse(r, strict, constructor).headers:
+        for i in constructed.headers:
             if i.get("Set-Cookie"):
                 self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
                 break
@@ -110,7 +115,7 @@ class Client:
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
         """
-        s = self.__s
+        s = self._s
         r = Request(
             headers=headers,
             path=f"{path}{urlencode(params) if params else ""}",
@@ -150,7 +155,7 @@ class Client:
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
         """
-        s = self.__s
+        s = self._s
         r = Request(
             headers=headers,
             path=f"{path}{urlencode(params) if params else ""}",
@@ -188,7 +193,7 @@ class Client:
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
         """
-        s = self.__s
+        s = self._s
         r = Request(
             headers=headers,
             path=f"{path}{urlencode(params) if params else ""}",
@@ -217,7 +222,7 @@ class Client:
         Returns:
             Headers: The headers of the resource.
         """
-        s = self.__s
+        s = self._s
         r = Request(
             headers=headers,
             path=f"{path}{urlencode(params) if params else ""}",
@@ -241,9 +246,9 @@ class Client:
             target (str): The target resource to find the operable methods of.
             size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
         Returns:
-            Headers: The specific header you need to access to actually retrieve your information on the available HTTP request methods are specified in the Allow header, so in this class, it would be `Headers.allow`
+            Headers: The specific header you need to access to actually retrieve your information on the available HTTP request. The valid HTTP methods are specified in the Allow header, so in this class, it would be `Headers.allow` to access the available methods.
         """
-        s = self.__s
+        s = self._s
         r = Options(url=urlunparse(self.url), target=target, path=path).construct()
         s.send(r)
         r = s.recv(size)
@@ -265,7 +270,7 @@ class Client:
         Returns:
             Response: A response that contains the code, and also contains the headers of this request.
         """
-        s = self.__s
+        s = self._s
         r = Request(
             headers=headers, method="TRACE", path=path, url=urlunparse(self.url)
         ).construct()
@@ -292,7 +297,7 @@ class Client:
         Returns:
             Response: A response that contains the code, and also contains the headers of this request.
         """
-        s = self.__s
+        s = self._s
         r = Request(
             headers=headers,
             method="PATCH",
@@ -319,7 +324,7 @@ class SslClient(Client):
         """
         super().__init__(url)
         self.__context = ssl._create_default_https_context(ssl.Purpose.CLIENT_AUTH)
-        self.__s = self.__context.wrap_socket(
+        self._s = self.__context.wrap_socket(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         )
         if not url.endswith("/"):

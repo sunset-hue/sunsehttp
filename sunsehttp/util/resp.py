@@ -1,12 +1,15 @@
 """Contains the definition of the response the client gets after sending a request."""
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, Literal, TYPE_CHECKING
 import warnings
 import json
 
+
+from .exceptions import ContinuationWarning, ClientError
+from .constants import error_code_reasons
+
 if TYPE_CHECKING:
-    from .exceptions import ContinuationWarning, ClientError
-    from .constants import error_code_reasons
+    from .._http import Client
 
 
 class Response:
@@ -47,7 +50,7 @@ class Response:
             if inited.code >= 300 < 400:
                 warnings.warn(
                     ContinuationWarning(
-                        "This request requires you to continue. Take necessary action. This was generated due to the strict error param being enabled. To silence these warnings/errors, set the strict param on your request to False, or just don't set it at all."
+                        "This request requires you to continue. Take necessary action. This was generated due to the strict error param being enabled. To silence these warnings/errors, set the strict param on your request to False, or just don't set it at all. (if the redirects param is set to True, you have nothing to worry about, ignore this message.)"
                     )
                 )
                 return inited
@@ -59,3 +62,28 @@ class Response:
                     "Code of above (or equal to) 400 was detected, indicating a client, AND/OR server side error. Check this error's `reason` attribute through the `error_info` attribute to see why. To silence these warnings/errors, set the strict param on your request to False, or just don't set it at all."
                 )
         return inited
+
+    def redirect(
+        self,
+        uri: str,
+        method: Literal["GET", "PUT", "POST", "DELETE", "TRACE", "OPTIONS"],
+        cl: "Client",  # forward reference to prevent cyclic imports, and preserve intellisense
+        **extra,
+    ):
+        """This is the method you need to use to redirect to the URI that's located in a request with a code of above or equal to 300 and below 400. Automatically sends a request of `method` to `URI`.
+        The **extra parameter is to specify data and headers to send to the redirect URI. If you want to send data, a "data" parameter in the **extra parameter is required, and if you want to send headers, then a "headers" parameter in the **extra parameter is required.
+        The Response returned is the return result of sending the specified request to the server.
+        """
+        methods = {
+            "GET": cl.get,
+            "PUT": cl.put,
+            "POST": cl.post,
+            "DELETE": cl.delete,
+            "TRACE": cl.trace,
+            "OPTIONS": cl.options,
+        }
+        methods[method](path=uri, **extra)
+        resp = cl._s.recv(
+            65536
+        )  # automatic, who cares how much they want to recieve smh
+        return self._parse(resp, False, str)
