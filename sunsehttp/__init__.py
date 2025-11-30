@@ -8,8 +8,9 @@ from ._http import SslClient, Client
 
 
 # TODO:
-# finish up cookie handling
+# encoding and response parsing
 # redirection management
+# multipart requests and also file uploading
 # websockets impl
 # server-side implementation
 # more features for QoL or code quality improvement

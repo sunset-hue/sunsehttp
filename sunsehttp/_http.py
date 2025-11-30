@@ -53,7 +53,6 @@ class Client:
         headers: dict[str, int | str] | None = None,
         size: int = 65536,
         strict: bool = False,
-        constructor: type = type[str],
         redirects: bool = True,
         redirect_op_index: int = 0,
     ):
@@ -65,7 +64,6 @@ class Client:
             headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             size (int): The max size that the internal `socket` will retrieve of the incoming request.
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
-            constructor (type): The type to construct the data of the response to. Defaults to the type of string.
             redirects (bool): Whether to redirect automatically to the specified resource if a 3xx code is recieved. Defaults to `True`. If this is set to `False`, you will have to handle the follow-up request.
             redirect_op_index (int): The index to use the URI of if a 300 code is recieved. Defaults to 0, meaning the first URI listed. Only valid if redirects is set to `True`, else does nothing.
 
@@ -80,7 +78,7 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        constructed = Response()._parse(r, strict, constructor)
+        constructed = Response()._parse(r, strict)
         if constructed in self.__get_cache:
             for i in self.__get_cache:
                 if constructed == i:
@@ -89,7 +87,7 @@ class Client:
             if i.get("Set-Cookie"):
                 self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
                 break
-        return Response()._parse(r, strict, constructor)
+        return Response()._parse(r, strict)
 
     def post(
         self,
@@ -99,7 +97,6 @@ class Client:
         size: int = 65536,
         strict: bool = False,
         data: Any = None,
-        constructor: type = type[str],
     ):
         """Sends a POST request to `self.url`+*route*. \n
         Note: If you want to supply a cookie through any of the requests, you will have to put it as a header, due to limitations as of 0.1.0. This is going to be fixed in later updates in 0.1.x.
@@ -109,7 +106,6 @@ class Client:
             headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             size (int): The max size that the internal `socket` will retrieve of the incoming request. (in bytes)
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
-            constructor (type): The type to construct the data of the response to. Defaults to the type of bytes.
             data (Any): The data to send to the path. Make sure this datatype can be encoded or decoded into `bytes`.
 
         Returns:
@@ -125,11 +121,11 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        for i in Response()._parse(r, strict, constructor).headers:
+        for i in Response()._parse(r, strict).headers:
             if i.get("Set-Cookie"):
                 self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
                 break
-        return Response()._parse(r, strict, constructor)
+        return Response()._parse(r, strict)
 
     def put(
         self,
@@ -139,7 +135,6 @@ class Client:
         size: int = 65536,
         strict: bool = False,
         data: Any = None,
-        constructor: type = type[str],
     ):
         """Sends a PUT request to `self.url`+*route*. \n
         Note: If you want to supply a cookie through any of the requests, you will have to put it as a header, due to limitations as of 0.1.0. This is going to be fixed in later updates in 0.1.x.
@@ -149,7 +144,6 @@ class Client:
             headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             size (int): The max size that the internal `socket` will retrieve of the incoming request. (in bytes)
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
-            constructor (type): The type to construct the data of the response to. Defaults to the type of bytes.
             data (Any): The data to send to the path. Make sure this datatype can be encoded into `bytes`.
 
         Returns:
@@ -165,11 +159,11 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        for i in Response()._parse(r, strict, constructor).headers:
+        for i in Response()._parse(r, strict).headers:
             if i.get("Set-Cookie"):
                 self.cookies.append(Cookie({"Set-Cookie": i.get("Set-Cookie")}))
                 break
-        return Response()._parse(r, strict, constructor)
+        return Response()._parse(r, strict)
 
     def delete(
         self,
@@ -178,7 +172,6 @@ class Client:
         headers: dict[str, int | str] | None = None,
         size: int = 65536,
         strict: bool = False,
-        constructor: type = type[str],
     ):
         """Sends a DELETE request to `self.url`+*route*.
 
@@ -188,7 +181,6 @@ class Client:
             headers (list[dict] | dict | None): Any headers needed for the request. Needs to be entered as a dict with all the headers you need inside it, in header-value pairs. Defaults to None.
             size (int): The max size that the internal `socket` will retrieve of the incoming request. (in bytes)
             strict (bool): Whether to error out on any HTTP codes greater than 400, with a custom reason. Defaults to `False`.
-            constructor (type): The type to construct the data of the response to. Defaults to the type of bytes.
 
         Returns:
             `Response` - The parsed response, with the response body, if applicable.
@@ -202,7 +194,7 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        return Response()._parse(r, strict, constructor)
+        return Response()._parse(r, strict)
 
     def head(
         self,
@@ -276,7 +268,7 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        return Response()._parse(r, error, str)
+        return Response()._parse(r, error)
         # for this, we may need more robust parsing due to the data being headers, and we're just using the str constructor
 
     def patch(
@@ -307,7 +299,7 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        return Response()._parse(r, error, str)
+        return Response()._parse(r, error)
 
 
 class SslClient(Client):

@@ -26,26 +26,23 @@ class Response:
         self.error_info = None
 
     @classmethod
-    def _parse(cls, incoming: bytes, strict_error: bool, constructor: type):
+    def _parse(cls, incoming: bytes, strict_error: bool):
         inited = cls()
-        response = incoming.decode()
-        code_header_data = response.split("\r\n")
+        response = incoming
+        code_header_data = response.split(b"\n")  # so we keep the \r as a marker
         inited.code = int(code_header_data[0].split()[1])
-        inited.phrase = code_header_data[0].split()[2]
+        inited.phrase = code_header_data[0].split()[2].decode()
         code_header_data.pop(0)
         n = 0
         for i in code_header_data:
-            if (
-                ":" in i and not i.startswith("{") and not i.startswith("<")
-            ):  # if it starts with a { we can assume that it's in json form
-                header_val = i.split(":")
-                inited.headers.append({header_val[0]: header_val[1]})
-                code_header_data.pop(n)
-                n += 1
-            elif i.startswith("{") or i.startswith("["):
-                inited.data = json.loads(i)
-            else:
-                inited.data = i
+            if b":" in i:
+                header_val = i.decode().split(":")
+                inited.headers.append({header_val[0]: header_val[1].removesuffix("\r")})
+                # this basically says "if I contain a colon (meaning it's a header), decode me and put me into self.headers"
+            if i == b"\r":
+                inited.data = incoming[n + 1 :]
+                # n + 1 so we don't include the empty \r line
+            n += 1
         if strict_error:
             if inited.code >= 300 < 400:
                 warnings.warn(
@@ -86,4 +83,4 @@ class Response:
         resp = cl._s.recv(
             65536
         )  # automatic, who cares how much they want to recieve smh
-        return self._parse(resp, False, str)
+        return self._parse(resp, False)
