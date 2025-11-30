@@ -8,9 +8,9 @@ from ._http import SslClient, Client
 
 
 # TODO:
-# encoding and response parsing
 # redirection management
 # multipart requests and also file uploading
 # websockets impl
 # server-side implementation
+# client request encoding
 # more features for QoL or code quality improvement
