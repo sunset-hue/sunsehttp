@@ -8,7 +8,6 @@ from ._http import SslClient, Client
 
 
 # TODO:
-# redirection management
 # multipart requests and also file uploading
 # websockets impl
 # server-side implementation
