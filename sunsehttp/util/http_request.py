@@ -184,3 +184,4 @@ class MultipartRequest:
                 if idx == len(self.data) - 1:
                     self.combined_raw_data += b"\r\n"
             self.combined_raw_data += self.boundary + b"-"
+        return self.combined_raw_data

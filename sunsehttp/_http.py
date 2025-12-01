@@ -363,7 +363,77 @@ class Client:
             )
         return Response._parse(r, error, unencoder)
 
-    def multipart_post(self, requests: list[Request] | MultipartRequest): ...
+    def multipart_post(
+        self,
+        requests: list[Request] | MultipartRequest,
+        path: str = "/",
+        unencoder: Callable[[str, bytes], None] | None = None,
+    ):
+        """Sends a multipart POST request to `self.url`+*route*
+
+        Args:
+            requests (list[Request] | MultipartRequest): A list of requests, or one multipart request representing the data you're sending to the server.
+            path (str, optional): The route to send to. Defaults to "/".
+        """
+        s = self._s
+        r = (
+            requests.combine()
+            if isinstance(requests, MultipartRequest)
+            else MultipartRequest(
+                requests=requests, url=urlunparse(self.url), path=path, method="POST"
+            ).combine()
+        )
+        s.send(r)
+        r = s.recv(65536)
+        return Response._parse(r, False, unencoder)
+
+    def multipart_put(
+        self,
+        requests: list[Request] | MultipartRequest,
+        path: str = "/",
+        unencoder: Callable[[str, bytes], None] | None = None,
+    ):
+        """Sends a multipart PUT request to `self.url`+*route*
+
+        Args:
+            requests (list[Request] | MultipartRequest): A list of requests, or one multipart request representing the data you're sending to the server.
+            path (str, optional): The route to send to. Defaults to "/".
+        """
+        s = self._s
+        r = (
+            requests.combine()
+            if isinstance(requests, MultipartRequest)
+            else MultipartRequest(
+                requests=requests, url=urlunparse(self.url), path=path, method="PUT"
+            ).combine()
+        )
+        s.send(r)
+        r = s.recv(65536)
+        return Response._parse(r, False, unencoder)
+
+    def multipart_patch(
+        self,
+        requests: list[Request] | MultipartRequest,
+        path: str = "/",
+        unencoder: Callable[[str, bytes], None] | None = None,
+    ):
+        """Sends a multipart PATCH request to `self.url`+*route*
+
+        Args:
+            requests (list[Request] | MultipartRequest): A list of requests, or one multipart request representing the data you're sending to the server.
+            path (str, optional): The route to send to. Defaults to "/".
+        """
+        s = self._s
+        r = (
+            requests.combine()
+            if isinstance(requests, MultipartRequest)
+            else MultipartRequest(
+                requests=requests, url=urlunparse(self.url), path=path, method="PATCH"
+            ).combine()
+        )
+        s.send(r)
+        r = s.recv(65536)
+        return Response._parse(r, False, unencoder)
 
 
 class SslClient(Client):
