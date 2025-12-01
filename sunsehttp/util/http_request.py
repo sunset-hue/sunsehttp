@@ -1,6 +1,8 @@
 """Class definition for `Request`, a simple class used to abstract away from manually typing the http message format in."""
 
-from typing import Any, Iterable
+from typing import Any
+import random
+import base64
 
 
 from .exceptions import Limitation
@@ -112,17 +114,17 @@ class MultipartRequest:
 
     def __init__(
         self,
-        requests: Iterable[Request] | None = None,
-        data: Iterable[dict[str, Any]] | None = None,
+        requests: list[Request] | None = None,
+        data: list[dict[str, Any]] | None = None,
         boundary: str | None = None,
         method: str | None = None,
         path: str | None = None,
         url: str | None = None,
     ):
-        """Creates a multipart request out of a list of requests or an iterable of dicts.
+        """Creates a multipart request out of a list of requests or a list of dicts. This is not used for file uploading. For file uploading, see `sunsehttp.File`
         Args:
-            requests (Iterable[Request] | None, optional): An iterable data structure filled with requests, to combine. Defaults to None.
-            data (Iterable[dict[str, Any]] | None, optional): An iterable data structure filled with dicts that are made in the format specified below. Defaults to None.
+            requests (list[Request] | None, optional): An list data structure filled with requests, to combine. Defaults to None.
+            data (list[dict[str, Any]] | None, optional): An list data structure filled with dicts that are made in the format specified below. Defaults to None.
             boundary (str | None, optional): The boundary string that seperates the requests/data. If not specified, a random boundary string is generated.
             method (str | None, optional): The method that every single dict in the data parameter should be constructed with. Does nothing if the request parameter is specified.
             path (str | None, optional): The path that all of the data will go to. Does nothing if the request parameter is specified.
@@ -134,7 +136,7 @@ class MultipartRequest:
         ## FORMAT:
         ```py
         {
-            "headers": <list of header-value pairs as dicts go here>,
+            "headers": <dict with all needed header-value pairs inside>,
             "data": <data>
         }
         ```
@@ -147,12 +149,38 @@ class MultipartRequest:
             raise RuntimeError("Only one parameter can be filled.")
         self.requests = requests
         self.data = data
-        self.combined_raw_data = ""
+        self.combined_raw_data = b""
         """The raw constructed string of all the requests/data strung together."""
-        self.path = path
-        self.url = url
-        self.boundary = boundary
-        self.method = method
+        self.path = path if url else requests[0].path  # type: ignore
+        self.url = url if url else requests[0].url  # type: ignore
+        self.boundary = bytes(boundary)  # pyright: ignore[reportArgumentType]
+        self.method = (
+            method
+            if method
+            else requests[0].method  # pyright: ignore[reportOptionalSubscript]
+        )
 
     def combine(self):
-        """Com"""
+        """Combines all of the requests/data, with the boundary in between, and at the end."""
+        if not self.boundary:
+            self.boundary = b"-" + base64.b64encode(random.randint(0, 1000).to_bytes())
+
+        if self.requests:
+            for idx, request in enumerate(self.requests):
+                self.combined_raw_data += request.construct()
+                self.combined_raw_data += self.boundary
+                if idx == len(self.requests) - 1:
+                    self.combined_raw_data += b"\r\n"
+            self.combined_raw_data += self.boundary + b"-"
+
+        if self.data:
+            for idx, i in enumerate(self.data):
+                self.combined_raw_data += Request(
+                    self.url,  # pyright: ignore[reportArgumentType]
+                    i["data"],
+                    i["headers"],
+                    self.method,
+                ).construct()
+                if idx == len(self.data) - 1:
+                    self.combined_raw_data += b"\r\n"
+            self.combined_raw_data += self.boundary + b"-"

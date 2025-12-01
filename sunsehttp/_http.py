@@ -4,7 +4,7 @@ from typing import Any, Callable
 import ssl
 
 from .util.exceptions import NotAbsoluteUrl
-from .util.http_request import Request, Headers, Options
+from .util.http_request import Request, Headers, Options, MultipartRequest
 from .util.resp import Response
 from .util.cookie import Cookie
 
@@ -363,7 +363,7 @@ class Client:
             )
         return Response._parse(r, error, unencoder)
 
-    def multipart_post(self, requests: list[Request]): ...
+    def multipart_post(self, requests: list[Request] | MultipartRequest): ...
 
 
 class SslClient(Client):
