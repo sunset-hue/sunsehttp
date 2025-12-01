@@ -8,6 +8,12 @@ from .util.http_request import Request, Headers, Options
 from .util.resp import Response
 from .util.cookie import Cookie
 
+# multipart so it makes sense:
+# put multipart on POST
+# PUT
+# PATCH
+# basically it, since GET, OPTIONS, DELETE, TRACE, and HEAD don't really need this type of modularity
+
 
 class Client:
     """A HTTP client that allows you to use HTTP methods on a specific url, or more if needed.
@@ -327,6 +333,7 @@ class Client:
         size: int = 65536,
         error: bool = False,
         unencoder: Callable[[str, bytes], None] | None = None,
+        redirects: bool = True,
     ):
         """Sends a PATCH request to `self.url`+*route*.
 
@@ -336,6 +343,7 @@ class Client:
             size (int, optional): The max size that the internal `socket` will retrieve of the incoming request (in bytes). Defaults to 65536.
             error (bool): Whether to error out on error codes above 400.
             unencoder (Callable[[str,bytes],bytes] | None): The custom unencoder function to use, since sunsehttp only provides support for gzip decompression. The function should take the encoding string as the first parameter, and the request body in bytes as the second one.
+            redirects (bool): Whether to automatically perform redirects if needed. Defaults to True. If set to False, you will have to handle redirects yourself.
         Returns:
             Response: A response that contains the code, and also contains the headers of this request.
         """
@@ -349,7 +357,13 @@ class Client:
         ).construct()
         s.send(r)
         r = s.recv(size)
-        return Response._parse(r, error)
+        if redirects:
+            self.handle_redirects(
+                Response._parse(r, error, unencoder), "PATCH", headers, data
+            )
+        return Response._parse(r, error, unencoder)
+
+    def multipart_post(self, requests: list[Request]): ...
 
 
 class SslClient(Client):

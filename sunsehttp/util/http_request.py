@@ -1,9 +1,9 @@
 """Class definition for `Request`, a simple class used to abstract away from manually typing the http message format in."""
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, Iterable
 
-if TYPE_CHECKING:
-    from .exceptions import Limitation
+
+from .exceptions import Limitation
 
 
 class Request:
@@ -105,3 +105,54 @@ class Options(Request):
         res += f"User-Agent: sunsehttp/0.1.0\r\n"
         res += f"Accept: */*\r\n"  # we can allow them to edit this later
         return res.encode()
+
+
+class MultipartRequest:
+    """Represents a multipart request."""
+
+    def __init__(
+        self,
+        requests: Iterable[Request] | None = None,
+        data: Iterable[dict[str, Any]] | None = None,
+        boundary: str | None = None,
+        method: str | None = None,
+        path: str | None = None,
+        url: str | None = None,
+    ):
+        """Creates a multipart request out of a list of requests or an iterable of dicts.
+        Args:
+            requests (Iterable[Request] | None, optional): An iterable data structure filled with requests, to combine. Defaults to None.
+            data (Iterable[dict[str, Any]] | None, optional): An iterable data structure filled with dicts that are made in the format specified below. Defaults to None.
+            boundary (str | None, optional): The boundary string that seperates the requests/data. If not specified, a random boundary string is generated.
+            method (str | None, optional): The method that every single dict in the data parameter should be constructed with. Does nothing if the request parameter is specified.
+            path (str | None, optional): The path that all of the data will go to. Does nothing if the request parameter is specified.
+            url (str | None, optional): The URL that all the data will go to. Does nothing if the request parameter is specified.
+
+        Raises:
+            RuntimeError: Raised if both parameters are filled, or if none of the parameters are filled.
+
+        ## FORMAT:
+        ```py
+        {
+            "headers": <list of header-value pairs as dicts go here>,
+            "data": <data>
+        }
+        ```
+        """
+        if all([requests is None, data is None]):
+            raise RuntimeError(
+                "MultipartRequest : Filling in at least one parameter is required."
+            )
+        elif all([requests is not None, data is not None]):
+            raise RuntimeError("Only one parameter can be filled.")
+        self.requests = requests
+        self.data = data
+        self.combined_raw_data = ""
+        """The raw constructed string of all the requests/data strung together."""
+        self.path = path
+        self.url = url
+        self.boundary = boundary
+        self.method = method
+
+    def combine(self):
+        """Com"""
