@@ -1,6 +1,8 @@
 import socket
 from urllib.parse import urlparse
 import ssl
+import base64
+import hashlib
 
 
 from ..util.http_request import Request
@@ -29,6 +31,7 @@ class Websocket:
             self.uri = uri
         else:
             NotAbsoluteUrl("%s is not an absolute url" % self.uri)
+        self.sha_1: str | None  = "" 
         self.do_connect()
 
     def do_connect(self):
@@ -38,12 +41,14 @@ class Websocket:
             self._s.connect((self.uri, 443))
         # below is the starting handshake
         s = self._s
+        self.__expectedkey = base64.standard_b64encode(hashlib.sha1(b"websockkey" + b"258EAFA5-E914-47DA-95CA-C5AB0DC85B1").digest())
         r = Request(
             self.uri,
-            headers={"Host": self.uri, "Upgrade": "websocket", "Connection": "Upgrade"},
+            headers={"Host": self.uri, "Upgrade": "websocket", "Connection": "Upgrade","Sec-Websocket-Version": 13, "Sec-Websocket-Key": str(base64.b64encode(b"websockkey"))},
             method="GET",
         ).construct()  # starting handshake
         res = Response._parse(s.recv(65536), False)
+        self.sha_1 = res.headers.get("Sec-Websocket-Accept") # pyright: ignore[reportAttributeAccessIssue]
         if res.code != 101:
             raise ImproperWebsocketCode(
                 f"{self.uri} sent an invalid handshake code of {res.code}, instead of 101 - Switching Protocols."
@@ -52,4 +57,8 @@ class Websocket:
             raise WsHandshakeFailed("Websocket handshake failed due to no Upgrade header provided by the server, or the Upgrade header specifying the wrong protocol.")
         if res.headers.get("Connection") is None or res.headers.get("Connection").lower() != "Upgrade" # type: ignore
             raise WsHandshakeFailed("Websocket handshake failed due to missing or malformed Connection header.")
+        if self.sha_1 is None or self.sha_1 != self.__expectedkey:
+            raise WsHandshakeFailed("Websocket server failed to send SHA-1 string, or SHA-1 string was malformed.")
+        if res.headers.get("Sec-Websocket-Protocol"): # we haven't defined any protocol at all
+            raise WsHandshakeFailed("Websocket server requested a subprotocol that was not indicated by the client handshake.")
         

@@ -11,4 +11,5 @@ from ._http import SslClient, Client
 # websockets impl
 # server-side implementation
 # client request encoding
+# async part of lib
 # more features for QoL or code quality improvement
