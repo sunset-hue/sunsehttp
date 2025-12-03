@@ -5,9 +5,9 @@ import base64
 import hashlib
 
 
-from ..util.http_request import Request
-from ..util.resp import Response
-from ..util.exceptions import NotAbsoluteUrl, ImproperWebsocketCode, WsHandshakeFailed
+from ..http.http_request import Request
+from ..http.resp import Response
+from ..http.exceptions import NotAbsoluteUrl, ImproperWebsocketCode, WsHandshakeFailed
 
 
 class Websocket:
@@ -61,4 +61,5 @@ class Websocket:
             raise WsHandshakeFailed("Websocket server failed to send SHA-1 string, or SHA-1 string was malformed.")
         if res.headers.get("Sec-Websocket-Protocol"): # we haven't defined any protocol at all
             raise WsHandshakeFailed("Websocket server requested a subprotocol that was not indicated by the client handshake.")
+        
         

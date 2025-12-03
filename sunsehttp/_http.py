@@ -3,10 +3,10 @@ from urllib.parse import urlparse, urlunparse, urlencode
 from typing import Any, Callable
 import ssl
 
-from .util.exceptions import NotAbsoluteUrl
-from .util.http_request import Request, Headers, Options, MultipartRequest
-from .util.resp import Response
-from .util.cookie import Cookie
+from .http.exceptions import NotAbsoluteUrl
+from .http.http_request import Request, Headers, Options, MultipartRequest
+from .http.resp import Response
+from .http.cookie import Cookie
 
 # multipart so it makes sense:
 # put multipart on POST
