@@ -38,4 +38,17 @@ class SocketFrame:
         self.data: bytes = b""
 
     def parser(self):
-        """parses bytes and returns"""
+        """parses frame"""
+        inted = int(self.parse)
+        i = 0
+        for n in range(0, inted + 1):
+            if inted >> n & 1 and i == 0:
+                self.final = True
+            if inted >> n & 1 and i == 9:
+                self.masked = True
+            i += 1
+        binary_rep = f"{inted:b}"
+        self.opcode = int(binary_rep[4:8], 2)
+        # what we're doing here is turning the integer we got into bytes, then getting bits 4 to 8, then turning it into a decimal integer.
+        if self.masked:
+            ...
