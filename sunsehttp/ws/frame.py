@@ -51,4 +51,4 @@ class SocketFrame:
         self.opcode = int(binary_rep[4:8], 2)
         # what we're doing here is turning the integer we got into bytes, then getting bits 4 to 8, then turning it into a decimal integer.
         if self.masked:
-            ...
+            print("just for a simple update, i'm gonna get to this project soon")
