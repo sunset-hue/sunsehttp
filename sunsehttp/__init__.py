@@ -8,7 +8,6 @@ from ._http import SslClient, Client
 
 
 # TODO:
-# websockets impl
 # server-side implementation
 # client request encoding
 # async part of lib

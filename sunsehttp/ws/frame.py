@@ -54,6 +54,7 @@ class SocketFrame:
         self.opcode = int(binary_rep[4:7], 2)
         # what we're doing here is turning the integer we got into bytes, then getting bits 4 to 8, then turning it into a decimal integer.
         if 0 <= int(binary_rep[9:16], 2) <= 125 and self.masked:
+            del self.extended_portion
             self.mask = int(
                 binary_rep[17:49], 2
             )  # since there's no extra payload length, the extended part of the message is basically empty, so the masking key takes its place (to 49, because the masking key is 32 bit)
@@ -61,3 +62,10 @@ class SocketFrame:
                 int(binary_rep[50:]) & self.mask
             )  # unmasks masked bits so we get raw data.
         # now we need to add logic for payloads that are larger than 125 bytes
+        if 0 <= int(binary_rep[9:16]) <= 125 and not self.masked:
+            del self.mask
+            del self.extended_portion
+            # they don't need this attribute
+            self.data = bytes(int(binary_rep[50:]))
+
+    # this is a current WIP, extended portion payloads are NOT going to be supported yet

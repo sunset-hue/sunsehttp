@@ -1,5 +1,5 @@
 import socket
-from urllib.parse import urlparse
+from urllib.parse import urlencode
 import ssl
 import base64
 import hashlib
@@ -8,6 +8,7 @@ import hashlib
 from ..http.http_request import Request
 from ..http.resp import Response
 from ..http.exceptions import NotAbsoluteUrl, ImproperWebsocketCode, WsHandshakeFailed
+from .frame import SocketFrame
 
 
 class Websocket:
@@ -61,5 +62,22 @@ class Websocket:
             raise WsHandshakeFailed("Websocket server failed to send SHA-1 string, or SHA-1 string was malformed.")
         if res.headers.get("Sec-Websocket-Protocol"): # we haven't defined any protocol at all
             raise WsHandshakeFailed("Websocket server requested a subprotocol that was not indicated by the client handshake.")
+    
+    def send(self, msg: bytes | str, path: str = "/", queries: dict | None = None, encoding: str = "utf-8", size: int = 65536) -> SocketFrame:
+        """Sends a websocket message to `self.url` + `path`
+
+        Args:
+            msg (bytes | str): The message to send to the websocket server.
+            path (str, optional): The path at which to send a message to. Defaults to "/".
+            queries (dict, optional): The queries for the path. Defaults to None.
         
-        
+        Returns:
+            `SocketFrame`: The parsed socket response. (Has limitations to what sunsehttp can recieve as of 0.1.0.)
+        """
+        with self._s as s:
+            old = self.uri
+            self.uri = old + path + urlencode(queries) # type: ignore
+            s.send(bytes(msg, encoding="utf-8") if isinstance(msg, str) else msg)
+            rec = s.recv(size)
+            self.uri = old
+            return SocketFrame(rec)
