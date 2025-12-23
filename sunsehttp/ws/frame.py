@@ -33,9 +33,12 @@ class SocketFrame:
         """The opcode of this message."""
         self.masked: bool = False
         """Whether this frame's data is masked."""
-        self.mask: bytes = b""
+        self.mask: int = 0
         """The mask to unmask the data."""
         self.data: bytes = b""
+        """The data."""
+        self.extended_portion: bytes = b""
+        """The extended data portion of the payload, if applicable."""
 
     def parser(self):
         """parses frame"""
@@ -44,11 +47,17 @@ class SocketFrame:
         for n in range(0, inted + 1):
             if inted >> n & 1 and i == 0:
                 self.final = True
-            if inted >> n & 1 and i == 9:
+            if inted >> n & 1 and i == 8:
                 self.masked = True
             i += 1
         binary_rep = f"{inted:b}"
-        self.opcode = int(binary_rep[4:8], 2)
+        self.opcode = int(binary_rep[4:7], 2)
         # what we're doing here is turning the integer we got into bytes, then getting bits 4 to 8, then turning it into a decimal integer.
-        if self.masked:
-            print("just for a simple update, i'm gonna get to this project soon")
+        if 0 <= int(binary_rep[9:16], 2) <= 125 and self.masked:
+            self.mask = int(
+                binary_rep[17:49], 2
+            )  # since there's no extra payload length, the extended part of the message is basically empty, so the masking key takes its place (to 49, because the masking key is 32 bit)
+            self.data = bytes(
+                int(binary_rep[50:]) & self.mask
+            )  # unmasks masked bits so we get raw data.
+        # now we need to add logic for payloads that are larger than 125 bytes
