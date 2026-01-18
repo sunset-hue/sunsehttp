@@ -1,6 +1,7 @@
 """Contains the server-side function definitions."""
 
 from typing import Callable
+from .sresp import ServerResponse
 
 
 class Server:
@@ -13,7 +14,9 @@ class Server:
     def start(self):
         """Starts the server and allows the server to respond to requests."""
 
-    def route(self, path: str, method: str, func: Callable):
+    def route(
+        self, path: str, method: str, func: Callable[[bytes | None], ServerResponse]
+    ):
         """Creates a route to access a certain resource. Function should contain a ServerResponse class as a return value.
         Args:
             path - str - The path that this resource can be accessed by.
